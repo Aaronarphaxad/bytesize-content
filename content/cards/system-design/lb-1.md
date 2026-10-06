@@ -1,0 +1,28 @@
+---
+schemaVersion: 1
+id: lb-1
+title: Why load balancers exist at all
+topic: system-design
+kind: image
+difficulty: intermediate
+tags: []
+readMinutes: 1
+status: published
+source:
+  label: AWS · Elastic Load Balancing
+  url: https://docs.aws.amazon.com/elasticloadbalancing/latest/userguide/how-elastic-load-balancing-works.html
+reviewed: "2026-10-06"
+baseLikes: 11200
+image:
+  url: https://picsum.photos/seed/bytesize-loadbalancer/1200/900
+  caption: "One front door, many interchangeable rooms behind it."
+---
+One stable address in front of many disposable backends. That single indirection is what makes horizontal scale, rolling deploys and failover possible.
+
+## Detail
+
+A load balancer gives clients one endpoint to remember while the fleet behind it changes constantly. Instances come and go, deploy, crash and autoscale, and none of that churn reaches the client.
+
+The health check is the part that actually earns its keep. The balancer probes each backend on an interval and stops routing to anything that fails, which converts a server crash from an outage into a brief dip in capacity.
+
+That indirection is also what makes safe deploys possible. Drain connections from one instance, replace it, let it pass health checks, then move to the next. Users never see a restart because there is always a healthy pool to answer them.

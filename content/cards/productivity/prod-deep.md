@@ -1,0 +1,28 @@
+---
+schemaVersion: 1
+id: prod-deep
+title: Context switching has a real price
+topic: productivity
+kind: image
+difficulty: intermediate
+tags: []
+readMinutes: 1
+status: published
+source:
+  label: Deep Work · Cal Newport
+  url: https://calnewport.com/deep-work-rules-for-focused-success-in-a-distracted-world/
+reviewed: "2026-10-06"
+baseLikes: 34200
+image:
+  url: https://picsum.photos/seed/bytesize-deepwork/1200/900
+  caption: Long blocks beat scattered minutes.
+---
+Rebuilding a mental model of complex code takes real minutes. Six interruptions an afternoon can cost you the entire afternoon.
+
+## Detail
+
+Hard engineering work requires holding a large model in working memory — call paths, invariants, the three edge cases you just discovered. An interruption evicts that model, and reloading it is slow and partial.
+
+That is why fragmented time is not equivalent to the same minutes in a block. Six scattered half-hours do not produce what one uninterrupted three-hour block does, because much of each fragment goes to reconstruction rather than progress.
+
+Protect blocks structurally rather than heroically. Put focus time on the calendar, batch code review and messages into defined windows, and agree team norms about what genuinely warrants an immediate ping. Culture beats willpower here.

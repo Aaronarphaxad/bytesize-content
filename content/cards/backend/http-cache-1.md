@@ -1,0 +1,25 @@
+---
+schemaVersion: 1
+id: http-cache-1
+title: "Cache-Control is a contract, not a hint"
+topic: backend
+kind: text
+difficulty: intermediate
+tags: []
+readMinutes: 1
+status: published
+source:
+  label: MDN · HTTP Caching
+  url: https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching
+reviewed: "2026-10-06"
+baseLikes: 15600
+---
+max-age counts seconds from receipt. no-store forbids writing to disk. no-cache stores but revalidates first. private keeps it off shared caches.
+
+## Detail
+
+Cache-Control is how your server tells every cache between it and the user what reuse is permitted. Browsers, CDNs and corporate proxies all read the same header, so getting it wrong leaks stale pages or wastes bandwidth at every hop.
+
+The directives people confuse most are no-cache and no-store. no-cache does allow storage — it just requires revalidation before each reuse, which usually means a cheap 304. no-store forbids writing the response down at all, and should be reserved for genuinely sensitive payloads.
+
+public and private control who may keep the copy. private means only the end user's browser, which matters enormously for authenticated responses sitting behind a shared CDN. Forgetting private on a personalised page is a classic way to serve one user's data to everybody.

@@ -1,0 +1,25 @@
+---
+schemaVersion: 1
+id: sd-queues
+title: Queues turn spikes into backlog
+topic: system-design
+kind: text
+difficulty: intro
+tags: []
+readMinutes: 1
+status: published
+source:
+  label: Designing Data-Intensive Applications
+  url: https://dataintensive.net/
+reviewed: "2026-10-06"
+baseLikes: 13800
+---
+Synchronous work fails under bursts. A queue lets producers and consumers scale independently, retry with backoff, and shed load without dropping users.
+
+## Detail
+
+When traffic spikes, synchronous architectures convert load into latency and then into errors. Every request holds a thread while it waits, the pool exhausts, and failures spread to endpoints that had nothing to do with the spike.
+
+A queue decouples accepting work from doing work. The API writes a message and returns quickly; workers drain the backlog at whatever rate they can sustain. The spike becomes a temporarily deeper queue instead of an outage.
+
+What you take on is operational: queue depth becomes a metric you alert on, messages can be delivered more than once so handlers must be idempotent, and you need a dead-letter queue so poison messages do not block the line forever.

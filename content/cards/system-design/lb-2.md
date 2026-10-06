@@ -1,0 +1,25 @@
+---
+schemaVersion: 1
+id: lb-2
+title: "Layer 4 is cheap, Layer 7 is smart"
+topic: system-design
+kind: text
+difficulty: intermediate
+tags: []
+readMinutes: 1
+status: published
+source:
+  label: NGINX · HTTP Load Balancing
+  url: https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/
+reviewed: "2026-10-06"
+baseLikes: 8420
+---
+L4 balances on IP and port with almost no overhead. L7 reads the HTTP request, which costs CPU but unlocks path routing, auth gates and canaries.
+
+## Detail
+
+An L4 balancer forwards packets based on connection metadata alone. It never parses your payload, so it is fast, protocol-agnostic and nearly free — ideal for raw TCP services and for absorbing very high connection rates.
+
+An L7 balancer terminates the connection and reads the HTTP request. Now it can route /api to one fleet and /images to another, strip or inject headers, enforce rate limits, and send 5% of traffic to a canary build based on a cookie.
+
+The practical answer in most architectures is both. An L4 layer at the edge handles volume and TLS passthrough, and an L7 layer inside handles application-aware routing where the extra CPU buys you real capability.

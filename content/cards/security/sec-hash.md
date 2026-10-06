@@ -1,0 +1,25 @@
+---
+schemaVersion: 1
+id: sec-hash
+title: "Fast hashes are the attacker's friend"
+topic: security
+kind: text
+difficulty: intro
+tags: []
+readMinutes: 1
+status: published
+source:
+  label: OWASP · Password Storage
+  url: https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
+reviewed: "2026-10-06"
+baseLikes: 29100
+---
+SHA-256 does billions of guesses per second on a GPU. Argon2id and bcrypt are deliberately slow and memory-hungry so that cannot happen.
+
+## Detail
+
+General-purpose hashes are optimised for speed, which is exactly wrong for passwords. A commodity GPU runs billions of SHA-256 guesses per second, so a leaked table of SHA-256 password hashes is effectively plaintext for any common password.
+
+Password hashes are built to be expensive on purpose, with tunable cost. Argon2id is the current recommendation because it is memory-hard, which blunts GPU and ASIC advantages. bcrypt and scrypt remain acceptable; raw SHA and MD5 never are.
+
+Salting is non-negotiable and handled for you by these algorithms — a unique random salt per password means identical passwords produce different hashes, defeating rainbow tables. Then re-tune the cost parameter every couple of years, since hardware keeps getting faster.

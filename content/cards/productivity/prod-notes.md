@@ -1,0 +1,25 @@
+---
+schemaVersion: 1
+id: prod-notes
+title: "Write the decision down, especially the rejected options"
+topic: productivity
+kind: text
+difficulty: intermediate
+tags: []
+readMinutes: 1
+status: published
+source:
+  label: Documenting Architecture Decisions
+  url: https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions
+reviewed: "2026-10-06"
+baseLikes: 16400
+---
+An ADR captures context, alternatives and consequences. Without it teams re-litigate the same debate annually with worse information.
+
+## Detail
+
+An architecture decision record is short by design: the context, the options considered, the choice, and the consequences accepted. It takes fifteen minutes and saves the same argument being had from scratch in eighteen months.
+
+The rejected alternatives are the most valuable part. Knowing you evaluated and dismissed an approach — and precisely why — stops someone confidently proposing it again, and tells you when the reasoning has expired because a constraint changed.
+
+Keep them in the repository next to the code, numbered and immutable. Superseding a decision means writing a new record that links to the old one, which gives you a readable history of how the system came to be shaped the way it is.

@@ -1,0 +1,35 @@
+---
+schemaVersion: 1
+id: http-cache-3
+title: "Cache assets forever, HTML never"
+topic: backend
+kind: code
+difficulty: intro
+tags: []
+readMinutes: 1
+status: published
+source:
+  label: MDN · HTTP Caching
+  url: https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching
+reviewed: "2026-10-06"
+baseLikes: 21300
+---
+Hashed filenames can be immutable for a year. The HTML shell that points at them must stay fresh so deploys actually reach users.
+
+## Detail
+
+The two-tier pattern is the backbone of fast web delivery. Build tooling emits app.3f9c1a.js, so the filename itself changes whenever the content does. That makes the file safe to cache for a year with immutable, which tells browsers not to even bother revalidating.
+
+The HTML document is the one thing that cannot be cached aggressively, because it is what references the hashed filenames. Serve it with no-cache so browsers revalidate on each load and pick up your new bundle immediately after deploy.
+
+Getting this backwards is a famously painful outage: cache the HTML for a year and users keep loading a document that points at bundles you already deleted, with no way for you to fix it remotely.
+
+## Code
+
+```http
+# Hashed, content-addressed asset
+Cache-Control: public, max-age=31536000, immutable
+
+# The HTML shell that references it
+Cache-Control: no-cache
+```

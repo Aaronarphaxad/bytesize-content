@@ -1,0 +1,45 @@
+---
+schemaVersion: 1
+id: ds-stack
+title: Stacks are how recursion actually works
+topic: data-structures
+kind: code
+difficulty: intro
+tags: []
+readMinutes: 1
+status: published
+source:
+  label: Introduction to Algorithms (CLRS)
+  url: https://mitpress.mit.edu/9780262046305/introduction-to-algorithms/
+reviewed: "2026-10-06"
+baseLikes: 12800
+---
+Last in, first out. Undo history, expression parsing and your own call frames are all the same structure wearing different names.
+
+## Detail
+
+A stack only allows push and pop at one end, and that single constraint is what makes it useful. Order is preserved exactly in reverse, which is precisely what undo, backtracking and nested-scope resolution need.
+
+Your language runtime maintains one for you. Each function call pushes a frame holding parameters and locals; returning pops it. Infinite recursion is just this stack outgrowing its allocation, which is why the error is called stack overflow.
+
+That equivalence is a practical refactoring tool. Any recursive algorithm can be rewritten iteratively with an explicit stack, which is how you process a tree a million nodes deep without the runtime killing you.
+
+## Code
+
+```typescript
+// Balanced-bracket check in one pass
+function isBalanced(input: string) {
+  const pairs: Record<string, string> = {
+    ')': '(', ']': '[', '}': '{',
+  };
+  const stack: string[] = [];
+
+  for (const char of input) {
+    if ('([{'.includes(char)) stack.push(char);
+    else if (pairs[char] && stack.pop() !== pairs[char]) {
+      return false;
+    }
+  }
+  return stack.length === 0;
+}
+```

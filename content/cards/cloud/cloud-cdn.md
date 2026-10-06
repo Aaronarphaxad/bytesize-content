@@ -1,0 +1,25 @@
+---
+schemaVersion: 1
+id: cloud-cdn
+title: A CDN is a cache with good geography
+topic: cloud
+kind: text
+difficulty: intermediate
+tags: []
+readMinutes: 1
+status: published
+source:
+  label: Cloudflare · Cache docs
+  url: https://developers.cloudflare.com/cache/
+reviewed: "2026-10-06"
+baseLikes: 13400
+---
+Edge locations serve users from nearby, so latency and origin load both fall. The hard part is never invalidation, it is cache keys.
+
+## Detail
+
+CDNs terminate connections close to the user, which removes most of the round-trip cost of TLS and HTTP. Even for uncacheable responses this helps, because the slow long-haul leg happens over a warm, optimised backbone connection.
+
+The subtle problem is the cache key. If your key ignores a header that changes the response, users receive each other's content; if it includes too much — a tracking query parameter, the full user agent — your hit rate collapses and you are paying for a cache that never hits.
+
+Prefer versioned URLs over purging. Global invalidation is slow, rate-limited and easy to misuse under pressure. Content-hashed filenames mean a deploy simply references new URLs, and the old ones expire quietly on their own.

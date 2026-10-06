@@ -1,0 +1,19 @@
+{
+  "name": "bytesize-content",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "validate": "tsx scripts/validate.ts",
+    "build": "tsx scripts/build.ts",
+    "migrate": "tsx scripts/migrate-from-app.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "gray-matter": "^4.0.3",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3",
+    "yaml": "^2.7.1",
+    "zod": "^3.24.2"
+  }
+}
