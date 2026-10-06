@@ -2,9 +2,15 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
 
-import type { CompiledCard, Difficulty, MediaKind, Topic } from '../schema/card.ts';
-import { DIFFICULTIES, KINDS, TOPICS } from '../schema/card.ts';
-import { DIST_DIR, loadAllCards, loadAllSeries, reportIssues } from './parse.ts';
+import type { CompiledCard, Difficulty, MediaKind } from '../schema/card.ts';
+import { DIFFICULTIES, KINDS } from '../schema/card.ts';
+import {
+  DIST_DIR,
+  loadAllCards,
+  loadAllSeries,
+  loadAllTopics,
+  reportIssues,
+} from './parse.ts';
 
 function shortSha(): string {
   try {
@@ -49,7 +55,8 @@ function emptyCounts<T extends string>(keys: readonly T[]): Record<T, number> {
 function build(): void {
   const { cards: parsed, issues: cardIssues } = loadAllCards();
   const { series, issues: seriesIssues } = loadAllSeries();
-  reportIssues([...cardIssues, ...seriesIssues]);
+  const { topics, issues: topicIssues } = loadAllTopics();
+  reportIssues([...cardIssues, ...seriesIssues, ...topicIssues]);
 
   const withSeries = attachSeries(
     parsed.map((p) => p.card),
@@ -58,11 +65,11 @@ function build(): void {
 
   const published = withSeries.filter((c) => c.status === 'published');
 
-  const byTopic = emptyCounts(TOPICS);
+  const byTopic: Record<string, number> = Object.fromEntries(topics.map((t) => [t.id, 0]));
   const byKind = emptyCounts(KINDS);
   const byDifficulty = emptyCounts(DIFFICULTIES);
   for (const card of published) {
-    byTopic[card.topic as Topic] += 1;
+    byTopic[card.topic] = (byTopic[card.topic] ?? 0) + 1;
     byKind[card.kind as MediaKind] += 1;
     byDifficulty[card.difficulty as Difficulty] += 1;
   }
@@ -86,8 +93,11 @@ function build(): void {
   writeFileSync(join(DIST_DIR, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
   writeFileSync(join(DIST_DIR, 'cards.json'), `${JSON.stringify(published, null, 2)}\n`);
   writeFileSync(join(DIST_DIR, 'series.json'), `${JSON.stringify(series, null, 2)}\n`);
+  writeFileSync(join(DIST_DIR, 'topics.json'), `${JSON.stringify(topics, null, 2)}\n`);
 
-  console.log(`Built dist/ · ${published.length} published cards · version ${version}`);
+  console.log(
+    `Built dist/ · ${published.length} published cards · ${topics.length} topics · version ${version}`,
+  );
 }
 
 build();

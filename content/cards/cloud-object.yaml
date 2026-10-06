@@ -1,0 +1,34 @@
+title: Object storage is not a filesystem
+topic: cloud
+kind: text
+difficulty: intermediate
+tags: []
+readMinutes: 1
+status: published
+source:
+  label: AWS · Amazon S3 User Guide
+  url: https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html
+reviewed: 2026-10-06
+summary: Keys are flat strings, not paths. There are no directories to rename
+  and no partial writes — only whole objects you replace.
+detail:
+  - S3-class storage maps a key to an immutable blob. The slashes in your key
+    are a display convention, not a hierarchy, which is why "renaming a folder"
+    means copying every object under a prefix and deleting the originals.
+  - You also cannot modify part of an object. Changing one byte means uploading
+    the whole thing again, so object storage suits write-once-read-many data —
+    uploads, backups, logs, static assets — and suits databases very poorly.
+  - The features worth turning on early are lifecycle rules and versioning.
+    Lifecycle transitions cold data to cheaper tiers automatically, which is
+    usually the single biggest storage saving available. Versioning makes an
+    accidental overwrite recoverable instead of permanent.
+code:
+  discriminant: false
+  value: null
+diagram:
+  discriminant: false
+  value: null
+image:
+  discriminant: false
+  value: null
+baseLikes: 11800

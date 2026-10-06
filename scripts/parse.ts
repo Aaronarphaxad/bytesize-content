@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
+import { join, relative, basename } from 'node:path';
 import matter from 'gray-matter';
 import { parse as parseYaml } from 'yaml';
 
@@ -7,15 +7,17 @@ import {
   CardFrontMatterSchema,
   CompiledCardSchema,
   SeriesSchema,
-  TOPICS,
+  TopicDefSchema,
+  YamlCardSchema,
   type CompiledCard,
   type SeriesDef,
-  type Topic,
+  type TopicDef,
 } from '../schema/card.ts';
 
 export const ROOT = join(import.meta.dirname, '..');
 export const CARDS_DIR = join(ROOT, 'content', 'cards');
 export const SERIES_DIR = join(ROOT, 'content', 'series');
+export const TOPICS_DIR = join(ROOT, 'content', 'topics');
 export const DIST_DIR = join(ROOT, 'dist');
 
 export type ParsedCardFile = {
@@ -45,25 +47,31 @@ export function reportIssues(issues: Issue[]): never | void {
   }
 }
 
-function listMarkdownFiles(dir: string): string[] {
+function listFiles(dir: string, extensions: string[], recursive = true): string[] {
   if (!existsSync(dir)) return [];
   const out: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...listMarkdownFiles(full));
-    else if (entry.isFile() && entry.name.endsWith('.md') && entry.name !== '.gitkeep') {
+    if (entry.isDirectory()) {
+      if (recursive) out.push(...listFiles(full, extensions, true));
+    } else if (entry.isFile() && extensions.some((ext) => entry.name.endsWith(ext))) {
       out.push(full);
     }
   }
   return out.sort();
 }
 
-function listYamlFiles(dir: string): string[] {
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir)
-    .filter((name) => name.endsWith('.yml') || name.endsWith('.yaml'))
-    .map((name) => join(dir, name))
-    .sort();
+function listCardFiles(): string[] {
+  // Flat layout preferred; still accept nested leftovers during migration.
+  return listFiles(CARDS_DIR, ['.yaml', '.yml', '.md'], true);
+}
+
+function listSeriesFiles(): string[] {
+  return listFiles(SERIES_DIR, ['.yaml', '.yml'], false);
+}
+
+function listTopicFiles(): string[] {
+  return listFiles(TOPICS_DIR, ['.yaml', '.yml'], false);
 }
 
 function sectionBody(markdown: string, heading: string): string | undefined {
@@ -113,10 +121,83 @@ function extractSummary(body: string): string {
   return summaryLines.join('\n').trim();
 }
 
-export function parseCardFile(filePath: string): { card?: CompiledCard; issues: Issue[] } {
+function fileSlug(filePath: string): string {
+  return basename(filePath).replace(/\.(ya?ml|md)$/, '');
+}
+
+/** Keystatic conditional fields serialize as { discriminant, value }. */
+function unwrapConditional<T>(value: unknown): T | undefined {
+  if (value == null) return undefined;
+  if (typeof value === 'object' && value !== null && 'discriminant' in value) {
+    const conditional = value as { discriminant: boolean; value?: T };
+    return conditional.discriminant ? conditional.value : undefined;
+  }
+  return value as T;
+}
+
+function unwrapSlug(value: unknown): string | undefined {
+  if (typeof value === 'string') return value;
+  if (value && typeof value === 'object') {
+    const slug = value as { slug?: string; name?: string };
+    return slug.slug || slug.name;
+  }
+  return undefined;
+}
+
+function normalizeYamlCard(raw: Record<string, unknown>, fileId: string): Record<string, unknown> {
+  const next = { ...raw };
+
+  if (next.schemaVersion == null) next.schemaVersion = 1;
+
+  // Filename is the source of truth for id (Keystatic slug).
+  const declared = unwrapSlug(next.id);
+  next.id = fileId;
+  if (declared && declared !== fileId) {
+    next.__idMismatch = declared;
+  }
+
+  const title = unwrapSlug(next.title);
+  if (title) next.title = title;
+
+  if (next.baseLikes === null) delete next.baseLikes;
+  if (next.color === '' || next.color == null) delete next.color;
+
+  const code = unwrapConditional<{ language?: string; content?: string }>(next.code);
+  if (code?.content) next.code = { language: code.language || 'text', content: code.content };
+  else delete next.code;
+
+  const diagramField = unwrapConditional<{ yaml?: string; nodes?: unknown; edges?: unknown }>(
+    next.diagram,
+  );
+  if (diagramField?.yaml) {
+    const parsed = parseYaml(diagramField.yaml) as { nodes?: unknown; edges?: unknown };
+    next.diagram = { nodes: parsed.nodes ?? [], edges: parsed.edges ?? [] };
+  } else if (diagramField?.nodes) {
+    next.diagram = { nodes: diagramField.nodes, edges: diagramField.edges ?? [] };
+  } else {
+    delete next.diagram;
+  }
+
+  const image = unwrapConditional<{ url?: string; caption?: string }>(next.image);
+  if (image?.url && image.caption) next.image = image;
+  else delete next.image;
+
+  if (typeof next.detail === 'string') {
+    next.detail = splitParagraphs(next.detail);
+  }
+
+  if (next.reviewed instanceof Date) {
+    next.reviewed = next.reviewed.toISOString().slice(0, 10);
+  }
+
+  return next;
+}
+
+function parseMarkdownCard(filePath: string): { card?: CompiledCard; issues: Issue[] } {
   const relativePath = relative(ROOT, filePath);
   const raw = readFileSync(filePath, 'utf8');
   const issues: Issue[] = [];
+  const fileId = fileSlug(filePath);
 
   let parsed: matter.GrayMatterFile<string>;
   try {
@@ -129,7 +210,8 @@ export function parseCardFile(filePath: string): { card?: CompiledCard; issues: 
     return { issues };
   }
 
-  const fm = CardFrontMatterSchema.safeParse(parsed.data);
+  const data = { ...parsed.data, id: fileId, schemaVersion: 1 };
+  const fm = CardFrontMatterSchema.safeParse(data);
   if (!fm.success) {
     for (const issue of fm.error.issues) {
       issues.push({
@@ -139,15 +221,6 @@ export function parseCardFile(filePath: string): { card?: CompiledCard; issues: 
       });
     }
     return { issues };
-  }
-
-  const folderTopic = relative(CARDS_DIR, filePath).split(sep)[0];
-  if (folderTopic !== fm.data.topic) {
-    issues.push({
-      file: relativePath,
-      line: 2,
-      message: `folder topic "${folderTopic}" does not match front matter topic "${fm.data.topic}"`,
-    });
   }
 
   const body = parsed.content.replace(/^\uFEFF/, '').trim();
@@ -205,14 +278,6 @@ export function parseCardFile(filePath: string): { card?: CompiledCard; issues: 
     });
   }
 
-  if (fm.data.kind !== 'image' && fm.data.image) {
-    issues.push({
-      file: relativePath,
-      line: 2,
-      message: 'image front matter is only valid when kind: image',
-    });
-  }
-
   if (issues.length > 0) return { issues };
 
   const candidate = {
@@ -237,8 +302,68 @@ export function parseCardFile(filePath: string): { card?: CompiledCard; issues: 
   return { card: compiled.data, issues: [] };
 }
 
+function parseYamlCard(filePath: string): { card?: CompiledCard; issues: Issue[] } {
+  const relativePath = relative(ROOT, filePath);
+  const issues: Issue[] = [];
+  const fileId = fileSlug(filePath);
+
+  let raw: unknown;
+  try {
+    raw = parseYaml(readFileSync(filePath, 'utf8'));
+  } catch (error) {
+    issues.push({
+      file: relativePath,
+      message: `Could not parse YAML: ${(error as Error).message}`,
+    });
+    return { issues };
+  }
+
+  if (!raw || typeof raw !== 'object') {
+    issues.push({ file: relativePath, message: 'YAML card must be an object' });
+    return { issues };
+  }
+
+  const normalized = normalizeYamlCard(raw as Record<string, unknown>, fileId);
+  if (normalized.__idMismatch) {
+    issues.push({
+      file: relativePath,
+      message: `yaml id "${normalized.__idMismatch}" does not match filename "${fileId}"`,
+    });
+    delete normalized.__idMismatch;
+  }
+
+  const parsed = YamlCardSchema.safeParse(normalized);
+  if (!parsed.success) {
+    for (const issue of parsed.error.issues) {
+      issues.push({
+        file: relativePath,
+        message: `${issue.path.join('.') || 'card'}: ${issue.message}`,
+      });
+    }
+    return { issues };
+  }
+
+  if (parsed.data.kind === 'code' && !parsed.data.code) {
+    issues.push({ file: relativePath, message: 'kind: code requires a code block' });
+  }
+  if (parsed.data.kind === 'diagram' && !parsed.data.diagram) {
+    issues.push({ file: relativePath, message: 'kind: diagram requires diagram nodes/edges' });
+  }
+  if (parsed.data.kind === 'image' && !parsed.data.image) {
+    issues.push({ file: relativePath, message: 'kind: image requires image url and caption' });
+  }
+
+  if (issues.length > 0) return { issues };
+  return { card: parsed.data, issues: [] };
+}
+
+export function parseCardFile(filePath: string): { card?: CompiledCard; issues: Issue[] } {
+  if (filePath.endsWith('.md')) return parseMarkdownCard(filePath);
+  return parseYamlCard(filePath);
+}
+
 export function loadAllCards(): { cards: ParsedCardFile[]; issues: Issue[] } {
-  const files = listMarkdownFiles(CARDS_DIR);
+  const files = listCardFiles();
   const cards: ParsedCardFile[] = [];
   const issues: Issue[] = [];
 
@@ -259,15 +384,25 @@ export function loadAllCards(): { cards: ParsedCardFile[]; issues: Issue[] } {
 }
 
 export function loadAllSeries(): { series: SeriesDef[]; issues: Issue[] } {
-  const files = listYamlFiles(SERIES_DIR);
+  const files = listSeriesFiles();
   const series: SeriesDef[] = [];
   const issues: Issue[] = [];
 
   for (const file of files) {
     const relativePath = relative(ROOT, file);
+    const fileId = fileSlug(file);
     try {
       const raw = parseYaml(readFileSync(file, 'utf8'));
-      const parsed = SeriesSchema.safeParse(raw);
+      if (!raw || typeof raw !== 'object') {
+        issues.push({ file: relativePath, message: 'series YAML must be an object' });
+        continue;
+      }
+      const data = { ...(raw as Record<string, unknown>) };
+      const title = unwrapSlug(data.title);
+      if (title) data.title = title;
+      data.id = fileId;
+
+      const parsed = SeriesSchema.safeParse(data);
       if (!parsed.success) {
         for (const issue of parsed.error.issues) {
           issues.push({
@@ -276,13 +411,6 @@ export function loadAllSeries(): { series: SeriesDef[]; issues: Issue[] } {
           });
         }
         continue;
-      }
-      const fileId = relativePath.split(sep).pop()!.replace(/\.ya?ml$/, '');
-      if (fileId !== parsed.data.id) {
-        issues.push({
-          file: relativePath,
-          message: `filename id "${fileId}" does not match series id "${parsed.data.id}"`,
-        });
       }
       series.push(parsed.data);
     } catch (error) {
@@ -296,10 +424,44 @@ export function loadAllSeries(): { series: SeriesDef[]; issues: Issue[] } {
   return { series, issues };
 }
 
-export function topicFoldersPresent(): Topic[] {
-  if (!existsSync(CARDS_DIR)) return [];
-  return readdirSync(CARDS_DIR, { withFileTypes: true })
-    .filter((d) => d.isDirectory())
-    .map((d) => d.name)
-    .filter((name): name is Topic => (TOPICS as readonly string[]).includes(name));
+export function loadAllTopics(): { topics: TopicDef[]; issues: Issue[] } {
+  const files = listTopicFiles();
+  const topics: TopicDef[] = [];
+  const issues: Issue[] = [];
+
+  for (const file of files) {
+    const relativePath = relative(ROOT, file);
+    const fileId = fileSlug(file);
+    try {
+      const raw = parseYaml(readFileSync(file, 'utf8'));
+      if (!raw || typeof raw !== 'object') {
+        issues.push({ file: relativePath, message: 'topic YAML must be an object' });
+        continue;
+      }
+      const data = { ...(raw as Record<string, unknown>) };
+      const label = unwrapSlug(data.label) ?? unwrapSlug(data.title);
+      if (label) data.label = label;
+      data.id = fileId;
+      if (data.color === '' || data.color == null) delete data.color;
+
+      const parsed = TopicDefSchema.safeParse(data);
+      if (!parsed.success) {
+        for (const issue of parsed.error.issues) {
+          issues.push({
+            file: relativePath,
+            message: `${issue.path.join('.') || 'topic'}: ${issue.message}`,
+          });
+        }
+        continue;
+      }
+      topics.push(parsed.data);
+    } catch (error) {
+      issues.push({
+        file: relativePath,
+        message: `Could not parse topic: ${(error as Error).message}`,
+      });
+    }
+  }
+
+  return { topics, issues };
 }

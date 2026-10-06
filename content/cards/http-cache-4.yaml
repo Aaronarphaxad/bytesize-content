@@ -1,0 +1,62 @@
+title: What happens when a request meets a cache
+topic: backend
+kind: diagram
+difficulty: intermediate
+tags: []
+readMinutes: 1
+status: published
+source:
+  label: MDN · HTTP Caching
+  url: https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching
+reviewed: 2026-10-06
+summary: Fresh copies never reach your origin. Stale copies revalidate cheaply.
+  Only true misses cost you a full round trip and a database query.
+detail:
+  - Trace the three outcomes. A fresh hit is answered entirely by the cache —
+    your origin never learns the request happened. A stale hit triggers a
+    conditional request, and a 304 means the cache refreshes its own timer
+    without transferring a body.
+  - "A miss is the expensive path: full request to origin, full response back,
+    and a decision about whether to store it. Your goal in capacity planning is
+    to make the miss rate small and predictable, because misses are what your
+    servers actually have to size for."
+  - stale-while-revalidate is the directive worth knowing here. It lets the
+    cache serve the stale copy immediately while fetching a fresh one in the
+    background, so users never pay the revalidation latency.
+code:
+  discriminant: false
+  value: null
+diagram:
+  discriminant: true
+  value:
+    yaml: |-
+      nodes:
+        - id: client
+          label: Client
+          x: 10
+          y: 74
+          width: 96
+          height: 44
+        - id: cache
+          label: Edge cache
+          x: 142
+          y: 74
+          width: 120
+          height: 44
+        - id: origin
+          label: Origin
+          x: 298
+          y: 74
+          width: 96
+          height: 44
+      edges:
+        - from: client
+          to: cache
+          label: GET
+        - from: cache
+          to: origin
+          label: miss only
+image:
+  discriminant: false
+  value: null
+baseLikes: 7450

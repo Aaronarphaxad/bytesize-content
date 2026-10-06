@@ -1,0 +1,18 @@
+# Filename = card id (Keystatic fills this from the title slug).
+# schemaVersion is injected at build time — do not put it in the file (Keystatic rejects unknown keys).
+title: A claim, stated in under ten words
+topic: backend # must match content/topics/<id>.yaml
+kind: text
+difficulty: intro
+tags: []
+readMinutes: 1
+status: published
+source:
+  label: Publisher or author
+  url: https://example.com/primary-source
+reviewed: 2026-01-01
+summary: |
+  The summary: one or two sentences that make the point on their own.
+detail:
+  - First paragraph of the longer explanation.
+  - Second paragraph. Keep it to about a minute of reading.

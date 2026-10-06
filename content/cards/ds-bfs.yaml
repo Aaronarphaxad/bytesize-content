@@ -1,0 +1,54 @@
+title: BFS finds the shortest unweighted path
+topic: data-structures
+kind: code
+difficulty: intermediate
+tags: []
+readMinutes: 2
+status: published
+source:
+  label: Algorithms · Sedgewick & Wayne
+  url: https://algs4.cs.princeton.edu/home/
+reviewed: 2026-10-06
+summary: Breadth-first search explores layer by layer, so the first time it
+  reaches a node it arrived by a shortest path. DFS gives you no such promise.
+detail:
+  - "BFS uses a queue, which means it exhausts everything at distance one before
+    looking at distance two. That ordering is the entire guarantee: in an
+    unweighted graph, the first arrival at a node is necessarily via a path of
+    minimum length."
+  - Swap the queue for a stack and you have DFS, which is fine for reachability
+    and cycle detection but says nothing about path length. Swap it for a
+    priority queue and you have Dijkstra, which restores the shortest-path
+    guarantee when edges have weights.
+  - Two implementation notes save real debugging time. Mark nodes as seen when
+    you enqueue them, not when you dequeue them, or you will add the same node
+    many times. And prefer a real deque — Array.shift() is O(n), which quietly
+    makes your O(V+E) traversal quadratic.
+code:
+  discriminant: true
+  value:
+    language: typescript
+    content: |-
+      function shortestPath(start: Node, goal: Node) {
+        const queue = [{ node: start, depth: 0 }];
+        const seen = new Set([start.id]);
+
+        while (queue.length) {
+          const { node, depth } = queue.shift()!;
+          if (node === goal) return depth;
+
+          for (const next of node.neighbors) {
+            if (seen.has(next.id)) continue;
+            seen.add(next.id); // mark on enqueue
+            queue.push({ node: next, depth: depth + 1 });
+          }
+        }
+        return -1;
+      }
+diagram:
+  discriminant: false
+  value: null
+image:
+  discriminant: false
+  value: null
+baseLikes: 22100

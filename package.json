@@ -4,12 +4,26 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "dev": "next dev",
     "validate": "tsx scripts/validate.ts",
-    "build": "tsx scripts/build.ts",
-    "migrate": "tsx scripts/migrate-from-app.ts"
+    "build:content": "tsx scripts/build.ts",
+    "build": "npm run build:content",
+    "migrate": "tsx scripts/migrate-from-app.ts",
+    "migrate:yaml": "tsx scripts/migrate-md-to-yaml.ts",
+    "flatten": "tsx scripts/flatten-for-keystatic.ts"
+  },
+  "dependencies": {
+    "@keystatic/core": "^0.5.48",
+    "@keystatic/next": "^5.0.4",
+    "@markdoc/markdoc": "^0.5.2",
+    "next": "^15.3.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
     "gray-matter": "^4.0.3",
     "tsx": "^4.19.3",
     "typescript": "^5.8.3",

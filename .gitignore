@@ -1,4 +1,7 @@
 node_modules/
+.next/
+out/
 dist/
+*.log
 .DS_Store
-.cards-dump.json
+next-env.d.ts

@@ -2,7 +2,13 @@ import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 
 import type { CompiledCard } from '../schema/card.ts';
-import { loadAllCards, loadAllSeries, reportIssues, type Issue } from './parse.ts';
+import {
+  loadAllCards,
+  loadAllSeries,
+  loadAllTopics,
+  reportIssues,
+  type Issue,
+} from './parse.ts';
 
 function idsOnMain(): Set<string> | null {
   try {
@@ -24,7 +30,6 @@ function idsOnMain(): Set<string> | null {
     }
   })();
 
-  // Only enforce immutability once main already has published content.
   let listing = '';
   try {
     listing = execSync(`git ls-tree -r --name-only ${ref} content/cards`, {
@@ -37,14 +42,11 @@ function idsOnMain(): Set<string> | null {
   if (!listing.trim()) return null;
 
   const ids = new Set<string>();
-  for (const path of listing.split('\n').filter((p) => p.endsWith('.md'))) {
-    try {
-      const blob = execSync(`git show ${ref}:${path}`, { encoding: 'utf8' });
-      const match = blob.match(/^id:\s*([a-z0-9-]+)\s*$/m);
-      if (match) ids.add(match[1]);
-    } catch {
-      // ignore missing blobs
-    }
+  for (const path of listing.split('\n')) {
+    if (!path.endsWith('.md') && !path.endsWith('.yaml') && !path.endsWith('.yml')) continue;
+    const base = path.split('/').pop() ?? '';
+    const id = base.replace(/\.(ya?ml|md)$/, '');
+    if (id) ids.add(id);
   }
   return ids;
 }
@@ -52,8 +54,17 @@ function idsOnMain(): Set<string> | null {
 function validateCorpus(): void {
   const { cards, issues: cardIssues } = loadAllCards();
   const { series, issues: seriesIssues } = loadAllSeries();
-  const issues: Issue[] = [...cardIssues, ...seriesIssues];
+  const { topics, issues: topicIssues } = loadAllTopics();
+  const issues: Issue[] = [...cardIssues, ...seriesIssues, ...topicIssues];
 
+  if (topics.length === 0) {
+    issues.push({
+      file: 'content/topics',
+      message: 'no topics defined — add at least one under content/topics/',
+    });
+  }
+
+  const topicIds = new Set(topics.map((t) => t.id));
   const byId = new Map<string, CompiledCard>();
   const titles = new Map<string, string>();
 
@@ -62,11 +73,17 @@ function validateCorpus(): void {
     if (byId.has(card.id)) {
       issues.push({
         file: relativePath,
-        line: 2,
         message: `duplicate id "${card.id}" (also used elsewhere)`,
       });
     } else {
       byId.set(card.id, card);
+    }
+
+    if (!topicIds.has(card.topic)) {
+      issues.push({
+        file: relativePath,
+        message: `unknown topic "${card.topic}" — create it under Topics in Keystatic first`,
+      });
     }
 
     const titleKey = card.title.trim().toLowerCase();
@@ -74,7 +91,6 @@ function validateCorpus(): void {
     if (prior) {
       issues.push({
         file: relativePath,
-        line: 2,
         message: `duplicate title "${card.title}" (also in ${prior})`,
       });
     } else {
@@ -88,7 +104,7 @@ function validateCorpus(): void {
     for (const cardId of def.cards) {
       if (seenInSeries.has(cardId)) {
         issues.push({
-          file: `content/series/${def.id}.yml`,
+          file: `content/series/${def.id}.yaml`,
           message: `card "${cardId}" appears twice in series "${def.id}"`,
         });
       }
@@ -96,7 +112,7 @@ function validateCorpus(): void {
 
       if (!byId.has(cardId)) {
         issues.push({
-          file: `content/series/${def.id}.yml`,
+          file: `content/series/${def.id}.yaml`,
           message: `series "${def.id}" references unknown card id "${cardId}"`,
         });
         continue;
@@ -105,7 +121,7 @@ function validateCorpus(): void {
       const prior = claimed.get(cardId);
       if (prior && prior !== def.id) {
         issues.push({
-          file: `content/series/${def.id}.yml`,
+          file: `content/series/${def.id}.yaml`,
           message: `card "${cardId}" is already in series "${prior}"`,
         });
       } else {
@@ -135,7 +151,7 @@ function validateCorpus(): void {
   const published = cards.filter((c) => c.card.status === 'published').length;
   const archived = cards.length - published;
   console.log(
-    `OK · ${cards.length} cards (${published} published, ${archived} archived) · ${series.length} series`,
+    `OK · ${cards.length} cards (${published} published, ${archived} archived) · ${series.length} series · ${topics.length} topics`,
   );
 }
 

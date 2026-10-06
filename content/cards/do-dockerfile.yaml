@@ -1,0 +1,50 @@
+title: Order your Dockerfile by rate of change
+topic: devops
+kind: code
+difficulty: intermediate
+tags: []
+readMinutes: 2
+status: published
+source:
+  label: Docker · Build best practices
+  url: https://docs.docker.com/build/building/best-practices/
+reviewed: 2026-10-06
+summary: Copy dependency manifests before source code. Then editing a file
+  reuses the cached install instead of redoing it from scratch.
+detail:
+  - Each Dockerfile instruction produces a layer, and a layer is reused only if
+    it and everything before it are unchanged. Copying your whole source tree
+    before installing dependencies invalidates the install on every code edit —
+    turning a five-second rebuild into five minutes.
+  - Copy package.json and the lockfile first, install, then copy source.
+    Dependencies change weekly, source changes hourly, so the expensive step
+    stays cached almost always.
+  - Multi-stage builds then strip what you shipped. Compile in a stage with full
+    toolchains, copy only the built artefact into a slim runtime image. Smaller
+    images pull faster, start faster, and carry fewer CVEs for someone to page
+    you about.
+code:
+  discriminant: true
+  value:
+    language: dockerfile
+    content: |-
+      # Stage 1 — dependencies change rarely
+      FROM node:22-alpine AS deps
+      WORKDIR /app
+      COPY package.json package-lock.json ./
+      RUN npm ci --omit=dev
+
+      # Stage 2 — source changes constantly
+      FROM node:22-alpine
+      WORKDIR /app
+      COPY --from=deps /app/node_modules ./node_modules
+      COPY . .
+      USER node
+      CMD ["node", "dist/index.js"]
+diagram:
+  discriminant: false
+  value: null
+image:
+  discriminant: false
+  value: null
+baseLikes: 23800

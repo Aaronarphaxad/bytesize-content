@@ -1,0 +1,63 @@
+title: Roles beat long-lived keys
+topic: cloud
+kind: diagram
+difficulty: intro
+tags: []
+readMinutes: 1
+status: published
+source:
+  label: AWS · IAM roles
+  url: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles.html
+reviewed: 2026-10-06
+summary: A principal assumes a role and receives temporary scoped credentials.
+  Nothing secret is stored, so nothing secret can leak from config.
+detail:
+  - Role assumption inverts the usual model. Instead of handing a service a
+    permanent key, you let it prove its identity and receive credentials that
+    expire in an hour. There is no secret in your config to accidentally commit
+    or forget to rotate.
+  - "The permissions come from the role's policy, and the trust policy controls
+    who may assume it. Both halves matter: a generous permission policy with a
+    sloppy trust policy is how one compromised workload ends up with database
+    admin."
+  - This pattern now extends outside the cloud provider. OIDC federation lets a
+    GitHub Actions workflow assume a role directly, which removes the single
+    most commonly leaked credential in modern software — the static cloud key
+    sitting in CI secrets.
+code:
+  discriminant: false
+  value: null
+diagram:
+  discriminant: true
+  value:
+    yaml: |-
+      nodes:
+        - id: user
+          label: Workload
+          x: 8
+          y: 76
+          width: 104
+          height: 44
+        - id: role
+          label: Role + policy
+          x: 140
+          y: 76
+          width: 130
+          height: 44
+        - id: res
+          label: Resource
+          x: 300
+          y: 76
+          width: 100
+          height: 44
+      edges:
+        - from: user
+          to: role
+          label: assume
+        - from: role
+          to: res
+          label: temp creds
+image:
+  discriminant: false
+  value: null
+baseLikes: 12900
